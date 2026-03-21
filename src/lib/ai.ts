@@ -350,6 +350,7 @@ export async function askTutor(topic: string, question: string, onRetry?: (attem
     return `📡 Teacher Dey Offline. I can't generate new quizzes right now, but '${topic}' is a critical skill for beating inflation!\n\nAction Plan:\n• Read the module content above carefully.\n• Note down 3 key takeaways.\n• Come back when I'm online, and I'll test your knowledge with a custom quiz!\n\nKeep learning—knowledge is your best hedge against inflation.`;
   }
 
+
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   const prompt = `
