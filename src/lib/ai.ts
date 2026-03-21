@@ -26,10 +26,10 @@ function getAdviceCacheKey(profile: UserProfile, portfolio: Portfolio | null): s
 }
 
 async function withRetryAndTimeout<T>(
-  operation: () => Promise<T>,
-  timeoutMs: number = 120000,
-  maxRetries: number = 2,
-  onRetry?: (attempt: number) => void
+    operation: () => Promise<T>,
+    timeoutMs: number = 120000,
+    maxRetries: number = 2,
+    onRetry?: (attempt: number) => void
 ): Promise<T> {
   let retries = 0;
   while (true) {
@@ -50,7 +50,7 @@ async function withRetryAndTimeout<T>(
       clearTimeout(timeoutId!);
       const isRateLimit = error.message?.includes('429') || error.message?.toLowerCase().includes('quota');
       const isTimeout = error.message === "AI Generation Timeout";
-      
+
       if ((isRateLimit || isTimeout) && retries < maxRetries) {
         retries++;
         if (onRetry) onRetry(retries);
@@ -65,13 +65,13 @@ async function withRetryAndTimeout<T>(
 }
 
 export function generateFallbackAdvice(
-  profile: UserProfile,
-  healthScore: FinancialHealthScore,
-  portfolio: Portfolio | null
+    profile: UserProfile,
+    healthScore: FinancialHealthScore,
+    portfolio: Portfolio | null
 ): AIInsight {
   const insights = [];
   const risks = [];
-  
+
   // Basic insights based on data
   if (profile.currentSavings > 0) {
     insights.push(`You have ₦${profile.currentSavings.toLocaleString()} sitting idle in your NGN wallet. Consider moving this into a high-yield asset like Treasury Bills to beat inflation.`);
@@ -93,11 +93,11 @@ export function generateFallbackAdvice(
   } else {
     insights.push(`Try to gradually increase your savings to at least 20% of your ₦${profile.monthlyIncome.toLocaleString()} income.`);
   }
-  
+
   if (profile.debt > 0) {
     risks.push(`High debt (₦${profile.debt.toLocaleString()}) can restrict your ability to invest in high-yield opportunities.`);
   }
-  
+
   if (profile.riskTolerance === 'high') {
     insights.push(`Your high risk tolerance means you can explore Nigerian equities, but ensure you have a solid cash buffer first.`);
   } else {
@@ -141,12 +141,12 @@ export function generateFallbackAdvice(
 }
 
 export async function generateFinancialAdvice(
-  profile: UserProfile,
-  healthScore: FinancialHealthScore,
-  simulation: SimulationResult | null,
-  portfolio: Portfolio | null,
-  onRetry?: (attempt: number) => void,
-  forceRefresh: boolean = false
+    profile: UserProfile,
+    healthScore: FinancialHealthScore,
+    simulation: SimulationResult | null,
+    portfolio: Portfolio | null,
+    onRetry?: (attempt: number) => void,
+    forceRefresh: boolean = false
 ): Promise<AIInsight> {
   if (!process.env.GEMINI_API_KEY) {
     console.warn("Gemini API Key not configured, using fallback");
@@ -261,9 +261,9 @@ Return ONLY valid JSON matching the requested schema. Do not include markdown fo
     if (!responseText) {
       throw new Error("No response from AI");
     }
-    
+
     const insightData = JSON.parse(responseText) as AIInsight;
-    
+
     // Save to cache
     try {
       localStorage.setItem(cacheKey, JSON.stringify({
@@ -282,15 +282,17 @@ Return ONLY valid JSON matching the requested schema. Do not include markdown fo
 }
 
 export async function chatWithCoach(
-  messages: { role: 'user' | 'model', parts: { text: string }[] }[],
-  profile: UserProfile,
-  healthScore: FinancialHealthScore,
-  portfolio: Portfolio | null,
-  isPidgin: boolean = false,
-  onRetry?: (attempt: number) => void
+    messages: { role: 'user' | 'model', parts: { text: string }[] }[],
+    profile: UserProfile,
+    healthScore: FinancialHealthScore,
+    portfolio: Portfolio | null,
+    isPidgin: boolean = false,
+    onRetry?: (attempt: number) => void
 ): Promise<string> {
   if (!process.env.GEMINI_API_KEY) {
-    return "I'm currently operating in offline mode. Please configure the Gemini API key to chat with me!";
+    return isPidgin
+        ? `📡 Network Dey Rest Small. No vex, my brain dey recharge, but I still see your money well well!\n\nWetin You Get:\n• NGN Wallet: ₦${profile.currentSavings.toLocaleString()}\n• USD Wallet: $${profile.usdSavings?.toLocaleString() || 0}\n\nMy Advice For Now: Since you wan reach ₦${profile.monthlySavingsCapacity.toLocaleString()} monthly, try shift that idle cash go T-Bills or Money Market. E go grow while we wait. I go come back strong soon to chat proper!`
+        : `📡 Offline Mode Active. While I'm recharging my AI engines, your financial data is safe and visible.\n\nQuick Snapshot:\n• NGN Wallet: ₦${profile.currentSavings.toLocaleString()}\n• USD Wallet: $${profile.usdSavings?.toLocaleString() || 0}\n\nMy Static Recommendation: Based on your goal to save ₦${profile.monthlySavingsCapacity.toLocaleString()} monthly, consider moving idle cash into a high-yield Money Market Fund today. I'll be back online soon to refine this strategy!`;
   }
 
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -333,18 +335,20 @@ Be conversational, empathetic, and direct. Use Nigerian context (Naira, T-Bills,
     return response.text || "I'm sorry, I couldn't process that request.";
   } catch (error) {
     console.error("Chat Error:", error);
-    
+
     // Fallback response if API fails
-    const fallbackMsg = isPidgin 
-      ? `Ah, network don jam small. But no worry, based on your profile, you get ₦${profile.currentSavings.toLocaleString()} for wallet and $${profile.usdSavings?.toLocaleString() || 0} for USD. Keep saving that ₦${profile.monthlySavingsCapacity.toLocaleString()} every month, e go make sense!`
-      : `I'm currently experiencing network issues and can't reach my AI brain. However, looking at your profile, I see you have ₦${profile.currentSavings.toLocaleString()} in NGN and $${profile.usdSavings?.toLocaleString() || 0} in USD. I recommend focusing on your goal of saving ₦${profile.monthlySavingsCapacity.toLocaleString()} monthly until I'm back online.`;
-      
+    const fallbackMsg = isPidgin
+        ? `📡 Network Dey Rest Small. No vex, my brain dey recharge, but I still see your money well well!\n\nWetin You Get:\n• NGN Wallet: ₦${profile.currentSavings.toLocaleString()}\n• USD Wallet: $${profile.usdSavings?.toLocaleString() || 0}\n\nMy Advice For Now: Since you wan reach ₦${profile.monthlySavingsCapacity.toLocaleString()} monthly, try shift that idle cash go T-Bills or Money Market. E go grow while we wait. I go come back strong soon to chat proper!`
+        : `📡 Offline Mode Active. While I'm recharging my AI engines, your financial data is safe and visible.\n\nQuick Snapshot:\n• NGN Wallet: ₦${profile.currentSavings.toLocaleString()}\n• USD Wallet: $${profile.usdSavings?.toLocaleString() || 0}\n\nMy Static Recommendation: Based on your goal to save ₦${profile.monthlySavingsCapacity.toLocaleString()} monthly, consider moving idle cash into a high-yield Money Market Fund today. I'll be back online soon to refine this strategy!`;
+
     return fallbackMsg;
   }
 }
 
 export async function askTutor(topic: string, question: string, onRetry?: (attempt: number) => void): Promise<string> {
-  if (!process.env.GEMINI_API_KEY) throw new Error("API Key missing");
+  if (!process.env.GEMINI_API_KEY) {
+    return `📡 Teacher Dey Offline. I can't generate new quizzes right now, but '${topic}' is a critical skill for beating inflation!\n\nAction Plan:\n• Read the module content above carefully.\n• Note down 3 key takeaways.\n• Come back when I'm online, and I'll test your knowledge with a custom quiz!\n\nKeep learning—knowledge is your best hedge against inflation.`;
+  }
 
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -370,6 +374,6 @@ export async function askTutor(topic: string, question: string, onRetry?: (attem
     return response.text || "I couldn't generate an answer right now.";
   } catch (error) {
     console.error("Tutor Error:", error);
-    return "Sorry, I'm having trouble connecting to the knowledge base.";
+    return `📡 Teacher Dey Offline. I can't generate new quizzes right now, but '${topic}' is a critical skill for beating inflation!\n\nAction Plan:\n• Read the module content above carefully.\n• Note down 3 key takeaways.\n• Come back when I'm online, and I'll test your knowledge with a custom quiz!\n\nKeep learning—knowledge is your best hedge against inflation.`;
   }
 }
