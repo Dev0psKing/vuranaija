@@ -193,7 +193,7 @@ export async function generateFinancialAdvice(
     onRetry?: (attempt: number) => void,
     forceRefresh: boolean = false
 ): Promise<AIInsight> {
-  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY || process.env.GROQ_API_KEY_ALT || (import.meta as any).env.VITE_GROQ_API_KEY_ALT;
 
   if (!groqKey) {
     console.warn("No Groq API Key configured, using offline fallback");
@@ -299,7 +299,7 @@ export async function chatWithCoach(
     isPidgin: boolean = false,
     onRetry?: (attempt: number) => void
 ): Promise<string> {
-  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY || process.env.GROQ_API_KEY_ALT || (import.meta as any).env.VITE_GROQ_API_KEY_ALT;
 
   if (!groqKey) {
     return isPidgin
@@ -327,7 +327,42 @@ CRITICAL LOGIC:
 Be conversational, empathetic, and direct. Use Nigerian context (Naira, T-Bills, FGN Bonds, local inflation, "Japa" if relevant). Keep responses concise (2-4 short paragraphs max) unless explaining a complex topic.`;
 
   if (isPidgin) {
-    systemInstruction += `\n\nCRITICAL: You MUST speak in friendly, clear Nigerian Pidgin English. Use terms like 'Oga', 'Abeg', 'No dull', 'Wetin', 'Chop life', 'Sapa', etc. Make the advice feel like a conversation between brothers/sisters while remaining professional about the numbers.`;
+    systemInstruction += `\n\n=== CRITICAL: NIGERIAN PIDGIN MODE ===
+YOU ARE NOW SPEAKING AUTHENTIC NIGERIAN PIDGIN. 
+Follow these rules strictly:
+
+1. TONE & PERSONA:
+   - You are a wise, street-smart Nigerian big brother/sister ("Oga").
+   - Be warm, empathetic, but direct. No robotic corporate talk.
+   - Use humor where appropriate (e.g., referencing "Sapa" or "Chop life").
+
+2. MANDATORY VOCABULARY (Use these often):
+   - Greetings/Connectors: "How far", "Wetin dey happen", "Abeg", "No wahala", "I hear you", "Make we", "Na so", "E no be easy".
+   - Money/Work: "Kobo", "Cash", "Hustle", "Small small", "Heavy load", "Break bread".
+   - Emphasis: "Well well", "Proper proper", "Joor", "Oya".
+
+3. STRICT FORBIDDEN WORDS (DO NOT USE):
+   - NEVER use American slang: "Gotta", "Wanna", "Cool", "Awesome", "Side hustle" (use "small business"), "Guys".
+   - NEVER use complex financial jargon without explaining it in simple Pidgin first.
+
+4. SENTENCE STRUCTURE:
+   - Keep sentences short and punchy.
+   - Use Nigerian grammar (e.g., "You dey try" instead of "You are trying", "Make you no forget" instead of "Do not forget").
+
+5. FEW-SHOT EXAMPLES (Learn from these):
+   - User: "How I fit save money?"
+     YOU: "Oga, e no be by force o! Start small small. Even if na ₦500 daily, make you drop am inside your savings account before you spend anything. Small small, e go become mountain!"
+   
+   - User: "Inflation too much."
+     YOU: "Ah, I feel you well well! Prices dey go up everywhere. Na why you no fit leave your money for bank account doing nothing. Make we put am work for T-Bills or Money Market, so e go grow pass inflation."
+
+   - User: "I want to invest."
+     YOU: "That one na good o! But first, which kind risk you fit carry? If you no wan lose sleep, make we start with Money Market. If you get strong heart, we fit look shares. Wetin you think?"
+
+6. GOAL:
+   - Give the same high-quality financial advice, but wrap it in this authentic Pidgin voice.
+   - Ensure the numbers (₦, $) remain accurate.
+===============================`;
   }
 
   try {
@@ -360,7 +395,7 @@ Be conversational, empathetic, and direct. Use Nigerian context (Naira, T-Bills,
 }
 
 export async function askTutor(topic: string, question: string, onRetry?: (attempt: number) => void): Promise<string> {
-  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY || process.env.GROQ_API_KEY_ALT || (import.meta as any).env.VITE_GROQ_API_KEY_ALT;
 
   if (!groqKey) {
     return `📡 Teacher Dey Offline. I can't generate new quizzes right now, but '${topic}' is a critical skill for beating inflation!\n\nAction Plan:\n• Read the module content above carefully.\n• Note down 3 key takeaways.\n• Come back when I'm online, and I'll test your knowledge with a custom quiz!\n\nKeep learning—knowledge is your best hedge against inflation.`;
