@@ -4,7 +4,8 @@
 > **Fellow:** Collins Uwabor  
 > **Track:** AI/ML Learning Track  
 > **Pillar:** Financial Inclusion  
-> **Live Demo:** [https://vuranaija.vercel.app](https://vuranaija.vercel.app)  
+
+[//]: # (> **Live Demo:** [https://vuranaija.vercel.app]&#40;https://vuranaija.vercel.app&#41;  )
 > **Demo Video:** [Watch on YouTube](https://youtu.be/FGZdL1lveXE)
 
 ---

@@ -1,4 +1,3 @@
-import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { UserProfile, FinancialHealthScore, SimulationResult, AIInsight, Portfolio } from "@/types";
 
 // --- Caching & Retry Utilities ---
@@ -64,6 +63,52 @@ async function withRetryAndTimeout<T>(
   }
 }
 
+async function callGroq(
+    messages: { role: string, content: string }[],
+    model: string = "llama-3.1-8b-instant",
+    jsonMode: boolean = false
+): Promise<string> {
+  // Support multiple keys for rate limit bypassing
+  const keys = [
+    process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY,
+    process.env.GROQ_API_KEY_ALT || (import.meta as any).env.VITE_GROQ_API_KEY_ALT
+  ].filter(Boolean);
+
+  if (keys.length === 0) throw new Error("Groq API key missing");
+
+  const body: any = { model, messages };
+  if (jsonMode) body.response_format = { type: "json_object" };
+
+  let lastError = new Error("Unknown error");
+
+  for (const apiKey of keys) {
+    try {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Groq API error: ${response.status} - ${errText}`);
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (e) {
+      lastError = e as Error;
+      console.warn(`Groq key failed, trying next if available...`, e);
+      continue;
+    }
+  }
+
+  throw lastError;
+}
+
 export function generateFallbackAdvice(
     profile: UserProfile,
     healthScore: FinancialHealthScore,
@@ -73,29 +118,29 @@ export function generateFallbackAdvice(
   const risks = [];
 
   // Basic insights based on data
-  if (profile.currentSavings > 0) {
-    insights.push(`You have ₦${profile.currentSavings.toLocaleString()} sitting idle in your NGN wallet. Consider moving this into a high-yield asset like Treasury Bills to beat inflation.`);
+  if ((profile.currentSavings || 0) > 0) {
+    insights.push(`You have ₦${(profile.currentSavings || 0).toLocaleString()} sitting idle in your NGN wallet. Consider moving this into a high-yield asset like Treasury Bills to beat inflation.`);
     risks.push(`Leaving cash uninvested in your NGN wallet exposes it to inflation. Put every Naira to work.`);
   }
 
-  if (profile.usdSavings > 0) {
-    insights.push(`You hold $${profile.usdSavings.toLocaleString()} in your USD wallet, providing an excellent hedge against Naira devaluation.`);
+  if ((profile.usdSavings || 0) > 0) {
+    insights.push(`You hold $${(profile.usdSavings || 0).toLocaleString()} in your USD wallet, providing an excellent hedge against Naira devaluation.`);
   }
 
-  if (portfolio && portfolio.totalValue > 0) {
-    insights.push(`Your portfolio of ₦${portfolio.totalValue.toLocaleString()} is a great start. Keep automating your monthly investments to harness compound interest.`);
+  if (portfolio && (portfolio.totalValue || 0) > 0) {
+    insights.push(`Your portfolio of ₦${(portfolio.totalValue || 0).toLocaleString()} is a great start. Keep automating your monthly investments to harness compound interest.`);
   } else {
     insights.push(`You haven't made your first investment yet. Start with a low-risk Money Market Fund to get comfortable with investing.`);
   }
 
-  if (profile.monthlySavingsCapacity > profile.monthlyIncome * 0.2) {
+  if ((profile.monthlySavingsCapacity || 0) > (profile.monthlyIncome || 0) * 0.2) {
     insights.push(`Great job! You are saving over 20% of your income, which is excellent for building wealth in Nigeria.`);
   } else {
-    insights.push(`Try to gradually increase your savings to at least 20% of your ₦${profile.monthlyIncome.toLocaleString()} income.`);
+    insights.push(`Try to gradually increase your savings to at least 20% of your ₦${(profile.monthlyIncome || 0).toLocaleString()} income.`);
   }
 
-  if (profile.debt > 0) {
-    risks.push(`High debt (₦${profile.debt.toLocaleString()}) can restrict your ability to invest in high-yield opportunities.`);
+  if ((profile.debt || 0) > 0) {
+    risks.push(`High debt (₦${(profile.debt || 0).toLocaleString()}) can restrict your ability to invest in high-yield opportunities.`);
   }
 
   if (profile.riskTolerance === 'high') {
@@ -105,7 +150,7 @@ export function generateFallbackAdvice(
   }
 
   // Ensure we have exactly 3 insights and 2 risks
-  while (insights.length < 3) insights.push(`Consistency is key: automate your ₦${profile.monthlySavingsCapacity.toLocaleString()} monthly savings.`);
+  while (insights.length < 3) insights.push(`Consistency is key: automate your ₦${(profile.monthlySavingsCapacity || 0).toLocaleString()} monthly savings.`);
   while (risks.length < 2) risks.push(`Inflation in Nigeria can erode cash savings; ensure your money is invested in yield-generating assets.`);
 
   return {
@@ -148,8 +193,10 @@ export async function generateFinancialAdvice(
     onRetry?: (attempt: number) => void,
     forceRefresh: boolean = false
 ): Promise<AIInsight> {
-  if (!process.env.GEMINI_API_KEY) {
-    console.warn("Gemini API Key not configured, using fallback");
+  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY;
+
+  if (!groqKey) {
+    console.warn("No Groq API Key configured, using offline fallback");
     return generateFallbackAdvice(profile, healthScore, portfolio);
   }
 
@@ -171,8 +218,6 @@ export async function generateFinancialAdvice(
   } else {
     console.log("Force refreshing AI advice, bypassing cache");
   }
-
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   const systemInstruction = `You are a Nigerian financial advisor and AI Co-Pilot for VuraNaija.
 Your goal is to give actionable advice that beats Nigeria's 15.06% inflation.
@@ -207,62 +252,26 @@ Return ONLY valid JSON matching the requested schema. Do not include markdown fo
   `;
 
   try {
-    const response = await withRetryAndTimeout(async () => {
-      return ai.models.generateContent({
-        model: "gemini-3-flash-preview", // Switched back to Flash for speed (30-40s -> ~5s)
-        contents: prompt,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              insights: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              risks: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              roadmap: {
-                type: Type.OBJECT,
-                properties: {
-                  month1: {
-                    type: Type.OBJECT,
-                    properties: {
-                      objective: { type: Type.STRING },
-                      actions: { type: Type.ARRAY, items: { type: Type.STRING } }
-                    }
-                  },
-                  month2: {
-                    type: Type.OBJECT,
-                    properties: {
-                      objective: { type: Type.STRING },
-                      actions: { type: Type.ARRAY, items: { type: Type.STRING } }
-                    }
-                  },
-                  month3: {
-                    type: Type.OBJECT,
-                    properties: {
-                      objective: { type: Type.STRING },
-                      actions: { type: Type.ARRAY, items: { type: Type.STRING } }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      });
-    }, 120000, 2, onRetry);
+    let responseText = "";
+    const groqMessages = [
+      { role: "system", content: systemInstruction },
+      { role: "user", content: prompt }
+    ];
 
-    const responseText = response.text;
-    if (!responseText) {
-      throw new Error("No response from AI");
+    try {
+      // TIER 1: Primary Groq (70B for complex JSON)
+      responseText = await callGroq(groqMessages, "llama-3.1-70b-versatile", true);
+    } catch (primaryError) {
+      console.warn("Groq 70B failed, falling back to 8B...", primaryError);
+      // TIER 2: Secondary Groq (8B Failover)
+      responseText = await callGroq(groqMessages, "llama-3.1-8b-instant", true);
     }
 
-    const insightData = JSON.parse(responseText) as AIInsight;
+    if (!responseText) throw new Error("No response from any AI");
+
+    // Clean markdown formatting if Groq returned it
+    const cleanText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const insightData = JSON.parse(cleanText) as AIInsight;
 
     // Save to cache
     try {
@@ -276,7 +285,8 @@ Return ONLY valid JSON matching the requested schema. Do not include markdown fo
 
     return insightData;
   } catch (error) {
-    console.error("AI Generation Error, using fallback:", error);
+    console.error("All AI Tiers Failed, using Offline Fallback:", error);
+    // TIER 3: Offline Fallback
     return generateFallbackAdvice(profile, healthScore, portfolio);
   }
 }
@@ -289,13 +299,13 @@ export async function chatWithCoach(
     isPidgin: boolean = false,
     onRetry?: (attempt: number) => void
 ): Promise<string> {
-  if (!process.env.GEMINI_API_KEY) {
-    return isPidgin
-        ? `📡 Network Dey Rest Small. No vex, my brain dey recharge, but I still see your money well well!\n\nWetin You Get:\n• NGN Wallet: ₦${profile.currentSavings.toLocaleString()}\n• USD Wallet: $${profile.usdSavings?.toLocaleString() || 0}\n\nMy Advice For Now: Since you wan reach ₦${profile.monthlySavingsCapacity.toLocaleString()} monthly, try shift that idle cash go T-Bills or Money Market. E go grow while we wait. I go come back strong soon to chat proper!`
-        : `📡 Offline Mode Active. While I'm recharging my AI engines, your financial data is safe and visible.\n\nQuick Snapshot:\n• NGN Wallet: ₦${profile.currentSavings.toLocaleString()}\n• USD Wallet: $${profile.usdSavings?.toLocaleString() || 0}\n\nMy Static Recommendation: Based on your goal to save ₦${profile.monthlySavingsCapacity.toLocaleString()} monthly, consider moving idle cash into a high-yield Money Market Fund today. I'll be back online soon to refine this strategy!`;
-  }
+  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY;
 
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  if (!groqKey) {
+    return isPidgin
+        ? `📡 Network Dey Rest Small. No vex, my brain dey recharge, but I still see your money well well!\n\nWetin You Get:\n• NGN Wallet: ₦${(profile.currentSavings || 0).toLocaleString()}\n• USD Wallet: $${(profile.usdSavings || 0).toLocaleString()}\n\nMy Advice For Now: Since you wan reach ₦${(profile.monthlySavingsCapacity || 0).toLocaleString()} monthly, try shift that idle cash go T-Bills or Money Market. E go grow while we wait. I go come back strong soon to chat proper!`
+        : `📡 Offline Mode Active. While I'm recharging my AI engines, your financial data is safe and visible.\n\nQuick Snapshot:\n• NGN Wallet: ₦${(profile.currentSavings || 0).toLocaleString()}\n• USD Wallet: $${(profile.usdSavings || 0).toLocaleString()}\n\nMy Static Recommendation: Based on your goal to save ₦${(profile.monthlySavingsCapacity || 0).toLocaleString()} monthly, consider moving idle cash into a high-yield Money Market Fund today. I'll be back online soon to refine this strategy!`;
+  }
 
   let systemInstruction = `You are an expert Nigerian financial advisor and AI Co-Pilot for VuraNaija.
 Your goal is to give actionable, personalized advice that helps users beat Nigeria's high inflation (currently ~15.06%).
@@ -321,37 +331,40 @@ Be conversational, empathetic, and direct. Use Nigerian context (Naira, T-Bills,
   }
 
   try {
-    const response = await withRetryAndTimeout(async () => {
-      return ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: messages,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          systemInstruction,
-        }
-      });
-    }, 120000, 2, onRetry);
+    const groqMessages = [
+      { role: "system", content: systemInstruction },
+      ...messages.map(m => ({
+        role: m.role === 'model' ? 'assistant' : 'user',
+        content: m.parts[0].text
+      }))
+    ];
 
-    return response.text || "I'm sorry, I couldn't process that request.";
+    try {
+      // TIER 1: Primary Groq (8B for speed)
+      return await callGroq(groqMessages, "llama-3.1-8b-instant", false);
+    } catch (primaryError) {
+      console.warn("Groq 8B failed, falling back to 70B...", primaryError);
+      // TIER 2: Secondary Groq (70B Failover)
+      return await callGroq(groqMessages, "llama-3.1-70b-versatile", false);
+    }
   } catch (error) {
-    console.error("Chat Error:", error);
+    console.error("All AI Tiers Failed, using Offline Fallback:", error);
 
-    // Fallback response if API fails
+    // TIER 3: Offline Fallback
     const fallbackMsg = isPidgin
-        ? `📡 Network Dey Rest Small. No vex, my brain dey recharge, but I still see your money well well!\n\nWetin You Get:\n• NGN Wallet: ₦${profile.currentSavings.toLocaleString()}\n• USD Wallet: $${profile.usdSavings?.toLocaleString() || 0}\n\nMy Advice For Now: Since you wan reach ₦${profile.monthlySavingsCapacity.toLocaleString()} monthly, try shift that idle cash go T-Bills or Money Market. E go grow while we wait. I go come back strong soon to chat proper!`
-        : `📡 Offline Mode Active. While I'm recharging my AI engines, your financial data is safe and visible.\n\nQuick Snapshot:\n• NGN Wallet: ₦${profile.currentSavings.toLocaleString()}\n• USD Wallet: $${profile.usdSavings?.toLocaleString() || 0}\n\nMy Static Recommendation: Based on your goal to save ₦${profile.monthlySavingsCapacity.toLocaleString()} monthly, consider moving idle cash into a high-yield Money Market Fund today. I'll be back online soon to refine this strategy!`;
+        ? `📡 Network Dey Rest Small. No vex, my brain dey recharge, but I still see your money well well!\n\nWetin You Get:\n• NGN Wallet: ₦${(profile.currentSavings || 0).toLocaleString()}\n• USD Wallet: $${(profile.usdSavings || 0).toLocaleString()}\n\nMy Advice For Now: Since you wan reach ₦${(profile.monthlySavingsCapacity || 0).toLocaleString()} monthly, try shift that idle cash go T-Bills or Money Market. E go grow while we wait. I go come back strong soon to chat proper!`
+        : `📡 Offline Mode Active. While I'm recharging my AI engines, your financial data is safe and visible.\n\nQuick Snapshot:\n• NGN Wallet: ₦${(profile.currentSavings || 0).toLocaleString()}\n• USD Wallet: $${(profile.usdSavings || 0).toLocaleString()}\n\nMy Static Recommendation: Based on your goal to save ₦${(profile.monthlySavingsCapacity || 0).toLocaleString()} monthly, consider moving idle cash into a high-yield Money Market Fund today. I'll be back online soon to refine this strategy!`;
 
     return fallbackMsg;
   }
 }
 
 export async function askTutor(topic: string, question: string, onRetry?: (attempt: number) => void): Promise<string> {
-  if (!process.env.GEMINI_API_KEY) {
+  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY;
+
+  if (!groqKey) {
     return `📡 Teacher Dey Offline. I can't generate new quizzes right now, but '${topic}' is a critical skill for beating inflation!\n\nAction Plan:\n• Read the module content above carefully.\n• Note down 3 key takeaways.\n• Come back when I'm online, and I'll test your knowledge with a custom quiz!\n\nKeep learning—knowledge is your best hedge against inflation.`;
   }
-
-
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
   const prompt = `
     You are a friendly financial tutor for Nigerian youth.
@@ -362,19 +375,22 @@ export async function askTutor(topic: string, question: string, onRetry?: (attem
   `;
 
   try {
-    const response = await withRetryAndTimeout(async () => {
-      return ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-        }
-      });
-    }, 60000, 2, onRetry);
+    const groqMessages = [
+      { role: "user", content: prompt }
+    ];
 
-    return response.text || "I couldn't generate an answer right now.";
+    try {
+      // TIER 1: Primary Groq (8B for speed)
+      return await callGroq(groqMessages, "llama-3.1-8b-instant", false);
+    } catch (primaryError) {
+      console.warn("Groq 8B failed, falling back to 70B...", primaryError);
+      // TIER 2: Secondary Groq (70B Failover)
+      return await callGroq(groqMessages, "llama-3.1-70b-versatile", false);
+    }
   } catch (error) {
-    console.error("Tutor Error:", error);
+    console.error("All AI Tiers Failed, using Offline Fallback:", error);
+
+    // TIER 3: Offline Fallback
     return `📡 Teacher Dey Offline. I can't generate new quizzes right now, but '${topic}' is a critical skill for beating inflation!\n\nAction Plan:\n• Read the module content above carefully.\n• Note down 3 key takeaways.\n• Come back when I'm online, and I'll test your knowledge with a custom quiz!\n\nKeep learning—knowledge is your best hedge against inflation.`;
   }
 }
