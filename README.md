@@ -1,98 +1,72 @@
-# VuraNaija 🇳🇬
+# 🚀 VuraNaija: AI-Powered Financial Co-Pilot for Nigerian Youth
 
-**Beat Nigeria's 30% inflation with an AI-powered financial co-pilot that transforms passive savings into active wealth building.**
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Built with Vite](https://img.shields.io/badge/Built%20with-Vite-646CFF.svg)](https://vitejs.dev/)
-[![AI Powered](https://img.shields.io/badge/AI-Gemini%203%20Flash-blue.svg)](https://ai.google.dev/)
-
-VuraNaija is a premium wealth-intelligence platform designed for the Nigerian economic landscape. Unlike traditional savings apps, it uses Google's Gemini 3 Flash model to diagnose your financial health and provide a personalized 90-day roadmap to navigate high inflation.
+> **NextGen Knowledge Showcase Submission**  
+> **Fellow:** Collins Uwabor  
+> **Track:** AI/ML Learning Track  
+> **Pillar:** Financial Inclusion  
+> **Live Demo:** [https://vuranaija.vercel.app](https://vuranaija.vercel.app)  
+> **Demo Video:** [Watch on YouTube](https://youtu.be/FGZdL1lveXE)
 
 ---
 
-## 🚀 Quick Start
+## 🎯 1. The Problem
+Nigeria faces a critical **Financial Literacy Gap**. While fintech apps provide access to investment tools, high inflation (30%+) erodes savings faster than users understand.
+- **The Challenge:** Existing platforms offer transactions but **no strategy**. Users don't know *what* to buy, *when* to buy, or how to hedge against Naira devaluation.
+- **The Result:** Passive saving without growth, or risky decisions based on misinformation.
 
-Get the development server running in under 60 seconds:
+## 👥 2. Target Users
+- **Primary:** Nigerian youths (18–55) entering the workforce who are digitally native but financially excluded.
+- **Secondary:** Individuals planning emigration ("Japa") needing structured financial roadmaps.
+- **Underserved Groups:** Non-expert speakers who need financial advice in **Nigerian Pidgin**.
 
+## 🛠️ 3. The Solution & Build (Technical Implementation)
+**VuraNaija** is an intelligent layer on top of traditional fintech, using AI to democratize financial strategy.
+
+### Core Features
+1.  **AI Financial Coach:** An LLM-powered assistant providing personalized advice in English & Pidgin.
+2.  **Inflation Simulator:** A dynamic engine allowing users to test strategies against real-world economic shocks (e.g., "What if inflation hits 30%?").
+3.  **Portfolio Stress Testing:** Visualizes portfolio resilience during market crashes (Bear Market, Crypto Winter).
+4.  **Japa Planner:** Calculates relocation costs and currency hedging strategies.
+
+### Tech Stack (AI/ML Focus)
+-   **Frontend:** Next.js, React, Tailwind CSS (Responsive PWA).
+-   **AI Engine:** Integrated **Google Gemini API / Qwen LLM** for natural language processing and contextual financial reasoning.
+-   **Prompt Engineering:** Custom system prompts tailored to Nigerian economic context (inflation, Japa, local assets).
+-   **Deployment:** Vercel (Serverless Edge Functions).
+-   **Data Visualization:** Recharts for interactive financial forecasting.
+
+## 🌍 4. Impact
+-   **Educational:** Transforms passive savers into informed investors by explaining complex concepts (like compound interest) simply.
+-   **Economic:** Helps users protect wealth from inflation through data-driven asset allocation (e.g., suggesting USD assets for Japa goals).
+-   **Inclusion:** Breaks language barriers by offering **Pidgin support**, making high-level financial advice accessible to millions.
+
+## 📈 5. Scalability & Business Model
+-   **Revenue:** Affiliate commissions from SEC-licensed partners (Cowrywise, Chapel Hill Denham) and a Freemium model for advanced AI insights.
+-   **Growth:** Viral loops via shareable "Financial Health Scores" and community challenges.
+-   **Future Roadmap:** Integration with Open Banking APIs (Mono/Okra) for auto-sweep features and real-time transaction analysis.
+
+## 🤖 6. AI Tool Disclosure
+This project leverages Generative AI to power its core value proposition:
+-   **Model:** Google Gemini / Qwen-Turbo (LLM).
+- 
+-   **Application:**
+    -   Generating personalised financial advice based on user profile data.
+    -   Translating financial jargon into Nigerian Pidgin.
+    -   Dynamic scenario generation for the Simulation Engine.
+-   **Human-in-the-Loop:** All AI advice includes mandatory disclaimers urging users to consult licensed advisors before executing trades.
+
+## 🏃‍♂️ 7. How to Run Locally
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/vura-naija.git
+git clone https://github.com/Dev0psKing/vuranaija.git
 
 # Install dependencies
 npm install
 
-# Start the development server
+# Set up environment variables (.env.local)
+GOOGLE_API_KEY=your_key_here
+# or
+DASHSCOPE_API_KEY=your_key_here
+
+# Run development server
 npm run dev
-```
-Your app is now running at `http://localhost:3000`.
-
----
-
-## 🛠 Installation
-
-### Prerequisites
-- **Node.js**: Version 18.0 or higher.
-- **Gemini API Key**: Obtain one from the [Google AI Studio](https://aistudio.google.com/app/apikey).
-
-### Environment Setup
-Create a `.env` file in the root directory and add your API key:
-
-```env
-GEMINI_API_KEY=your_actual_api_key_here
-```
-
----
-
-## 💡 Usage Examples
-
-### 1. Chat with the AI Coach
-Navigate to the **AI Coach** tab to ask specific questions about the Nigerian market.
-- **Input:** "How do I protect my ₦500k from 30% inflation?"
-- **Output:** A personalized strategy involving T-Bills, Money Market Funds, and USD-denominated assets.
-
-### 2. Relocation Planning (Japa)
-Use the **Japa Planner** to calculate the true cost of relocation.
-- Select your destination (UK, Canada, USA).
-- Input your current savings.
-- Receive a gap analysis and a savings plan based on current exchange rates.
-
-### 3. Inflation Stress Test
-Use the **Simulator** to see how your future goals (e.g., buying a house in 5 years) are impacted by varying inflation rates.
-
----
-
-## 💻 CLI Commands
-
-The project includes several built-in scripts to manage your development workflow. You can view all available options using the help flag:
-
-```bash
-# Show Vite CLI help and options
-npm run dev -- --help
-```
-
-| Command | Description |
-| :--- | :--- |
-| `npm run dev` | Starts the local development server on port 3000. |
-| `npm run build` | Compiles the application for production deployment. |
-| `npm run lint` | Runs TypeScript type-checking to ensure code quality. |
-| `npm run preview` | Previews the production build locally. |
-
----
-
-## 🏗 Tech Stack
-
-- **Frontend**: React 19, TypeScript, Vite
-- **Styling**: Tailwind CSS 4, Framer Motion
-- **AI Engine**: Google Gemini 3 Flash SDK
-- **Charts**: Recharts
-- **Icons**: Lucide React
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
-
----
-
-**Built with 💚 for the future of Nigerian Wealth.**
