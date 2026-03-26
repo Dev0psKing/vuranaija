@@ -260,7 +260,7 @@ Return ONLY valid JSON matching the requested schema. Do not include markdown fo
 
     try {
       // TIER 1: Primary Groq (70B for complex JSON)
-      responseText = await callGroq(groqMessages, "llama-3.1-70b-versatile", true);
+      responseText = await callGroq(groqMessages, "llama-3.3-70b-versatile", true);
     } catch (primaryError) {
       console.warn("Groq 70B failed, falling back to 8B...", primaryError);
       // TIER 2: Secondary Groq (8B Failover)
@@ -380,7 +380,7 @@ Follow these rules strictly:
     } catch (primaryError) {
       console.warn("Groq 8B failed, falling back to 70B...", primaryError);
       // TIER 2: Secondary Groq (70B Failover)
-      return await callGroq(groqMessages, "llama-3.1-70b-versatile", false);
+      return await callGroq(groqMessages, "llama-3.3-70b-versatile", false);
     }
   } catch (error) {
     console.error("All AI Tiers Failed, using Offline Fallback:", error);
@@ -420,7 +420,7 @@ export async function askTutor(topic: string, question: string, onRetry?: (attem
     } catch (primaryError) {
       console.warn("Groq 8B failed, falling back to 70B...", primaryError);
       // TIER 2: Secondary Groq (70B Failover)
-      return await callGroq(groqMessages, "llama-3.1-70b-versatile", false);
+      return await callGroq(groqMessages, "llama-3.3-70b-versatile", false);
     }
   } catch (error) {
     console.error("All AI Tiers Failed, using Offline Fallback:", error);
