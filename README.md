@@ -1,6 +1,6 @@
-# 🚀 VuraNaija: AI-Powered Financial Co-Pilot for Nigerian Youth
+# 🚀 VuraNaija: AI-Powered Financial Co-Pilot for Nigerian Youths
 
-> **NextGen Knowledge Showcase Submission**  
+> **NextGen Hackerthon Showcase Submission**  
 > **Fellow:** Collins Uwabor  
 > **Track:** AI/ML Learning Track  
 > **Pillar:** Financial Inclusion  
