@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useUser } from '@/context/UserContext';
 import { generateFinancialAdvice, chatWithCoach } from '@/lib/ai';
+import ReactMarkdown from 'react-markdown';
 import { AIInsight } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -300,7 +301,13 @@ export default function Coach() {
                         {msg.role === 'user' ? <User className="w-4 h-4" /> : <BrainCircuit className="w-4 h-4" />}
                       </div>
                       <div className={`px-4 py-3 rounded-2xl max-w-[80%] ${msg.role === 'user' ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-muted rounded-tl-sm'}`}>
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.parts[0].text}</p>
+                        {msg.role === 'model' ? (
+                          <div className="text-sm leading-relaxed [&>h1]:mb-3 [&>h1]:text-lg [&>h1]:font-bold [&>h2]:mb-2 [&>h2]:mt-4 [&>h2]:text-base [&>h2]:font-bold [&>h3]:mb-2 [&>h3]:mt-3 [&>h3]:text-sm [&>h3]:font-bold [&>p]:mb-3 [&>p:last-child]:mb-0 [&>ul]:mb-3 [&>ul]:list-disc [&>ul]:space-y-1 [&>ul]:pl-5 [&>ol]:mb-3 [&>ol]:list-decimal [&>ol]:space-y-1 [&>ol]:pl-5 [&_strong]:font-bold [&_a]:text-primary [&_a]:underline">
+                            <ReactMarkdown>{msg.parts[0].text}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.parts[0].text}</p>
+                        )}
                       </div>
                     </div>
                   ))
