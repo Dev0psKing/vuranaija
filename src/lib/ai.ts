@@ -68,45 +68,21 @@ async function callGroq(
     model: string = "llama-3.1-8b-instant",
     jsonMode: boolean = false
 ): Promise<string> {
-  // Support multiple keys for rate limit bypassing
-  const keys = [
-    process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY,
-    process.env.GROQ_API_KEY_ALT || (import.meta as any).env.VITE_GROQ_API_KEY_ALT
-  ].filter(Boolean);
-
-  if (keys.length === 0) throw new Error("Groq API key missing");
-
   const body: any = { model, messages };
   if (jsonMode) body.response_format = { type: "json_object" };
+  const response = await fetch("/api/groq", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
 
-  let lastError = new Error("Unknown error");
-
-  for (const apiKey of keys) {
-    try {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Groq API error: ${response.status} - ${errText}`);
-      }
-
-      const data = await response.json();
-      return data.choices[0].message.content;
-    } catch (e) {
-      lastError = e as Error;
-      console.warn(`Groq key failed, trying next if available...`, e);
-      continue;
-    }
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Groq API error: ${response.status} - ${errText}`);
   }
 
-  throw lastError;
+  const data = await response.json();
+  return data.content;
 }
 
 export function generateFallbackAdvice(
@@ -193,13 +169,6 @@ export async function generateFinancialAdvice(
     onRetry?: (attempt: number) => void,
     forceRefresh: boolean = false
 ): Promise<AIInsight> {
-  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY || process.env.GROQ_API_KEY_ALT || (import.meta as any).env.VITE_GROQ_API_KEY_ALT;
-
-  if (!groqKey) {
-    console.warn("No Groq API Key configured, using offline fallback");
-    return generateFallbackAdvice(profile, healthScore, portfolio);
-  }
-
   // Check Cache
   const cacheKey = getAdviceCacheKey(profile, portfolio);
   if (!forceRefresh) {
@@ -299,14 +268,6 @@ export async function chatWithCoach(
     isPidgin: boolean = false,
     onRetry?: (attempt: number) => void
 ): Promise<string> {
-  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY || process.env.GROQ_API_KEY_ALT || (import.meta as any).env.VITE_GROQ_API_KEY_ALT;
-
-  if (!groqKey) {
-    return isPidgin
-        ? `📡 Network Dey Rest Small. No vex, my brain dey recharge, but I still see your money well well!\n\nWetin You Get:\n• NGN Wallet: ₦${(profile.currentSavings || 0).toLocaleString()}\n• USD Wallet: $${(profile.usdSavings || 0).toLocaleString()}\n\nMy Advice For Now: Since you wan reach ₦${(profile.monthlySavingsCapacity || 0).toLocaleString()} monthly, try shift that idle cash go T-Bills or Money Market. E go grow while we wait. I go come back strong soon to chat proper!`
-        : `📡 Offline Mode Active. While I'm recharging my AI engines, your financial data is safe and visible.\n\nQuick Snapshot:\n• NGN Wallet: ₦${(profile.currentSavings || 0).toLocaleString()}\n• USD Wallet: $${(profile.usdSavings || 0).toLocaleString()}\n\nMy Static Recommendation: Based on your goal to save ₦${(profile.monthlySavingsCapacity || 0).toLocaleString()} monthly, consider moving idle cash into a high-yield Money Market Fund today. I'll be back online soon to refine this strategy!`;
-  }
-
   let systemInstruction = `You are an expert Nigerian financial advisor and AI Co-Pilot for VuraNaija.
 Your goal is to give actionable, personalized advice that helps users beat Nigeria's high inflation (currently ~15.06%).
 You have access to the user's financial profile:
@@ -395,12 +356,6 @@ Follow these rules strictly:
 }
 
 export async function askTutor(topic: string, question: string, onRetry?: (attempt: number) => void): Promise<string> {
-  const groqKey = process.env.GROQ_API_KEY || (import.meta as any).env.VITE_GROQ_API_KEY || process.env.GROQ_API_KEY_ALT || (import.meta as any).env.VITE_GROQ_API_KEY_ALT;
-
-  if (!groqKey) {
-    return `📡 Teacher Dey Offline. I can't generate new quizzes right now, but '${topic}' is a critical skill for beating inflation!\n\nAction Plan:\n• Read the module content above carefully.\n• Note down 3 key takeaways.\n• Come back when I'm online, and I'll test your knowledge with a custom quiz!\n\nKeep learning—knowledge is your best hedge against inflation.`;
-  }
-
   const prompt = `
     You are a friendly financial tutor for Nigerian youth.
     Topic: ${topic}
