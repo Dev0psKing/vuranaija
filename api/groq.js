@@ -1,7 +1,46 @@
-const ALLOWED_MODELS = new Set([
-  "llama-3.1-8b-instant",
-  "llama-3.3-70b-versatile",
-]);
+let modelCache = null;
+let modelCacheExpiresAt = 0;
+
+async function resolveModel(apiKey, requestedModel) {
+  const now = Date.now();
+  if (!modelCache || now > modelCacheExpiresAt) {
+    const response = await fetch("https://api.groq.com/openai/v1/models", {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!response.ok) return requestedModel;
+
+    const data = await response.json();
+    modelCache = new Set(
+      (data?.data ?? [])
+        .map((model) => model?.id)
+        .filter((model) => typeof model === "string")
+        .filter((model) => !/(whisper|guard|tts|translate|embedding)/i.test(model)),
+    );
+    modelCacheExpiresAt = now + 5 * 60 * 1000;
+  }
+
+  if (modelCache.has(requestedModel)) return requestedModel;
+
+  if (requestedModel.includes("70b")) {
+    for (const candidate of [
+      "llama-3.3-70b-versatile",
+      "openai/gpt-oss-120b",
+      "openai/gpt-oss-20b",
+    ]) {
+      if (modelCache.has(candidate)) return candidate;
+    }
+  } else {
+    for (const candidate of [
+      "llama-3.1-8b-instant",
+      "openai/gpt-oss-20b",
+      "llama-3.3-70b-versatile",
+    ]) {
+      if (modelCache.has(candidate)) return candidate;
+    }
+  }
+
+  return [...modelCache][0] ?? requestedModel;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -19,7 +58,7 @@ export default async function handler(req, res) {
   }
 
   const { model, messages, response_format } = req.body ?? {};
-  if (!ALLOWED_MODELS.has(model) || !Array.isArray(messages) || messages.length === 0) {
+  if (typeof model !== "string" || !Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: "Invalid model or messages" });
   }
 
@@ -28,16 +67,19 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: "Request is too large" });
   }
 
-  const body = {
-    model,
-    messages,
-    ...(response_format?.type === "json_object"
-      ? { response_format: { type: "json_object" } }
-      : {}),
-  };
-
   let lastError = "Groq request failed";
   for (const apiKey of apiKeys) {
+    const resolvedModel = await resolveModel(apiKey, model);
+    if (!resolvedModel) continue;
+
+    const body = {
+      model: resolvedModel,
+      messages,
+      ...(response_format?.type === "json_object"
+        ? { response_format: { type: "json_object" } }
+        : {}),
+    };
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 120_000);
 
